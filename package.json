@@ -1,0 +1,25 @@
+{
+  "name": "github-crawler",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "apify": "^0.15.5",
+    "axios": "^0.19.0",
+    "bluebird": "^3.5.5",
+    "bull": "^3.10.0",
+    "ioredis": "^4.14.1",
+    "lodash": "^4.17.15",
+    "mongoose": "^5.7.1",
+    "nodemailer": "^6.3.0",
+    "proxy-chain": "^0.3.1",
+    "puppeteer": "^1.19.0",
+    "simple-node-logger": "^18.12.23",
+    "underscore": "^1.9.1"
+  }
+}
