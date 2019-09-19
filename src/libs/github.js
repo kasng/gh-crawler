@@ -91,6 +91,12 @@ class Github {
      * @returns {null}
      */
     static handleRateLimit(res) {
+        console.error(`GITHUB STATUS ERROR: ${res.status}`);
+        console.error(`GITHUB STATUS TEXT ERROR: ${res.statusText}`);
+        try {
+            console.error(`GITHUB PROXY ERROR: ${res.request.agent.proxy.href}`);
+        } catch (e) {
+        }
         if (res.status === 403) {
             // Github rate limit
             console.error('====== GITHUB LIMIT ======');
@@ -221,7 +227,7 @@ class Github {
         (0, _utils.checkParamOrThrow)(jobData, 'jobData', 'Object');
 
         const res = await Github.searchRepos(jobData);
-        console.log(res);
+        //console.log(res);
         if (res.status < 300) {
             // Request OK
             // Create new queue
@@ -367,7 +373,7 @@ class Github {
         if ('url' in jobData && jobData.url) {
             // Request API
             const res = await Github.get(jobData.url);
-            console.log(res);
+            //console.log(res);
             if (res.status < 300) {
                 // Request OK
                 Utils.logInfo(JSON.stringify(res.data), 'Contributors_Response');
@@ -486,7 +492,7 @@ class Github {
 
         if ('url' in jobData && jobData.url) {
             const res = await Github.get(jobData.url);
-            console.log(res);
+            //console.log(res);
             if (res.status < 300) {
                 // Request OK
                 Utils.logInfo(JSON.stringify(res.data), 'Languages_Response');
@@ -516,8 +522,8 @@ class Github {
 
         if ('url' in jobData && jobData.url) {
             const res = await Github.get(jobData.url, {headers: {'Accept': 'application/vnd.github.mercy-preview+json'}});
-            console.log(res);
-            // console.log(res);
+            //console.log(res);
+            // //console.log(res);
             if (res.status < 300) {
                 // Request OK
                 Utils.logInfo(JSON.stringify(res.data), 'Topics_Response');
@@ -546,7 +552,7 @@ class Github {
 
         if ('url' in jobData && jobData.url) {
             const res = await Github.get(jobData.url);
-            console.log(res);
+            //console.log(res);
             if (res.status < 300) {
                 // Request OK
                 Utils.logInfo(JSON.stringify(res.data), 'User_Response');
@@ -576,7 +582,7 @@ class Github {
 
         if ('url' in jobData && jobData.url) {
             const res = await Github.get(jobData.url);
-            console.log(res);
+            //console.log(res);
             if (res.status < 300) {
                 // Request OK
                 Utils.logInfo(JSON.stringify(res.data), 'User_Repos_Response');
@@ -599,7 +605,7 @@ class Github {
                     // Update to contributor collections
                     for (let userRepo of UserRepos) {
                         // Only save to mongodb, does not grab contributors
-                        let repoDoc = GithubRepoModel.findOneAndUpdate(
+                        let repoDoc = await GithubRepoModel.findOneAndUpdate(
                             {name: userRepo.name},
                             userRepo,
                             {
@@ -608,7 +614,7 @@ class Github {
                             }
                         ).exec();
 
-                        console.log(repoDoc._id);
+                        // console.log(repoDoc._id);
                         // Push to contributor doc
                         let pushData = {
                             owner_repos: repoDoc._id
@@ -648,7 +654,7 @@ class Github {
 
         if ('url' in jobData && jobData.url) {
             const res = await Github.get(jobData.url);
-            console.log(res);
+            //console.log(res);
             if (res.status < 300) {
                 // Request OK
                 Utils.logInfo(JSON.stringify(res.data), 'Starred_Repos_Response');
@@ -675,7 +681,7 @@ class Github {
                             new: true,
                             upsert: true
                         }).exec();
-                        console.log(repoDoc._id);
+                        // console.log(repoDoc._id);
                         // Push to contributor doc
                         await GithubContributorModel.updateOne(
                             {
@@ -719,7 +725,7 @@ class Github {
                 });
 
                 const res = await axiosInstance.get(`https://registry.npmjs.org/-/user/org.couchdb.user:${jobData.contributorLogin}`);
-                // console.log(res);
+                // //console.log(res);
                 if (res.status < 300) {
                     // Request OK
                     if (res.data && lodash.isObject(res.data) && Object.keys(res.data)) {
@@ -752,6 +758,7 @@ class Github {
 
         if ('url' in jobData && jobData.url) {
             const res = await Github.get(jobData.url);
+            //console.log(res);
             if (res.status < 300) {
                 // Request OK
                 Utils.logInfo(JSON.stringify(res.data), 'User_Events_Response');
@@ -773,9 +780,11 @@ class Github {
                     }
                     // Find email from response
                     let findEmails = Utils.findEmails(UserEvents);
+                    console.log(findEmails);
                     Utils.logInfo(JSON.stringify(findEmails), 'Find_Emails');
                     let uniqEmails = lodash.uniqBy(findEmails, 'email');
                     Utils.logInfo(JSON.stringify(uniqEmails), 'Find_Emails');
+                    console.log(uniqEmails);
                     // Add this email to contributors
                     await GithubContributorModel.updateOne(
                         {
