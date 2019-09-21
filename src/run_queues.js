@@ -13,7 +13,7 @@ const {GithubRequestQueue} = require('./libs/redis/redis_queues');
         // Main process
         const jobData = lodash.clone(job.data);
         // Process Job
-        return Github.processJob(jobData);
+        return Github.processJob(jobData, job);
     });
 
 })();

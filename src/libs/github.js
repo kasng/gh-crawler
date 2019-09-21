@@ -9,7 +9,7 @@ var GithubRepoModel = require('./models/repo');
 var GithubContributorModel = require('./models/contributor');
 const {GithubRequestQueue} = require('./redis/redis_queues');
 const {URL} = require('url');
-const {RandomProxyRedis} = require('./redis/redis_proxy');
+const {RandomProxyRedis, ProxyRateLimitSets} = require('./redis/redis_proxy');
 const nodemailer = require('nodemailer');
 
 class Github {
@@ -90,17 +90,23 @@ class Github {
      * @param res Axios response
      * @returns {null}
      */
-    static handleRateLimit(res) {
-        console.error(`GITHUB STATUS ERROR: ${res.status}`);
-        console.error(`GITHUB STATUS TEXT ERROR: ${res.statusText}`);
+    static async handleRateLimit(res) {
+        console.log(`GITHUB STATUS ERROR: ${res.status}`);
+        console.log(`GITHUB STATUS TEXT ERROR: ${res.statusText}`);
         try {
-            console.error(`GITHUB PROXY ERROR: ${res.request.agent.proxy.href}`);
+            console.log(`GITHUB PROXY ERROR: ${res.request.agent.proxy.href}`);
         } catch (e) {
         }
-        if (res.status === 403) {
+        if (Number(res.status) === 403 || Number(res.status) === 429) {
             // Github rate limit
-            console.error('====== GITHUB LIMIT ======');
+            console.log('====== GITHUB LIMIT ======');
             // Github.beforeExit();
+            // Log to Redis
+            try {
+                await ProxyRateLimitSets.ZINCRBY(res.request.agent.proxy.href, 1);
+            } catch (e) {
+                console.log(e);
+            }
         }
         throw new Error('GITHUB RETRY REQUEST');
     }
@@ -287,12 +293,16 @@ class Github {
                         /**
                          * @todo We could filter owner later, remove un-use field
                          */
-                        let contributorDoc = await GithubContributorModel.findOneAndUpdate({
-                            login: item.owner.login
-                        }, item.owner, {
-                            new: true,
-                            upsert: true
-                        }).exec();
+                        let contributorDoc = await GithubContributorModel.findOneAndUpdate(
+                            {
+                                login: item.owner.login
+                            },
+                            item.owner,
+                            {
+                                new: true,
+                                upsert: true
+                            }
+                        ).exec();
                         if (contributorDoc) {
                             // Save repo data
                             // the omit is considerably slower than pick method. we could improve later
@@ -362,9 +372,8 @@ class Github {
             }
             return true;
         } else {
-            return Github.handleRateLimit(res);
+            return await Github.handleRateLimit(res);
         }
-        return false;
     }
 
     /**
@@ -482,7 +491,7 @@ class Github {
                 }
                 return true;
             } else {
-                return Github.handleRateLimit(res);
+                return await Github.handleRateLimit(res);
             }
         } else {
             throw new Error('Invalid Job Data');
@@ -512,7 +521,7 @@ class Github {
                 }
                 return true;
             } else {
-                return Github.handleRateLimit(res);
+                return await Github.handleRateLimit(res);
             }
         } else {
             throw new Error('Invalid Job Data');
@@ -542,7 +551,7 @@ class Github {
                 }
                 return true;
             } else {
-                return Github.handleRateLimit(res);
+                return await Github.handleRateLimit(res);
             }
         } else {
             throw new Error('Invalid Job Data');
@@ -572,7 +581,7 @@ class Github {
                 }
                 return true;
             } else {
-                return Github.handleRateLimit(res);
+                return await Github.handleRateLimit(res);
             }
         } else {
             throw new Error('Invalid Job Data');
@@ -646,7 +655,7 @@ class Github {
                 }
                 return true;
             } else {
-                return Github.handleRateLimit(res);
+                return await Github.handleRateLimit(res);
             }
         } else {
             throw new Error('Invalid Job Data');
@@ -687,10 +696,14 @@ class Github {
                     // Update to contributor collections
                     for (let userRepo of UserRepos) {
                         // Only save to mongodb, does not grab contributors
-                        let repoDoc = await GithubRepoModel.findOneAndUpdate({name: userRepo.name}, userRepo, {
-                            new: true,
-                            upsert: true
-                        }).exec();
+                        let repoDoc = await GithubRepoModel.findOneAndUpdate(
+                            {name: userRepo.name},
+                            userRepo,
+                            {
+                                new: true,
+                                upsert: true
+                            }
+                        ).exec();
                         // console.log(repoDoc._id);
                         // Push to contributor doc
                         await GithubContributorModel.updateOne(
@@ -707,7 +720,7 @@ class Github {
                 }
                 return true;
             } else {
-                return Github.handleRateLimit(res);
+                return await Github.handleRateLimit(res);
             }
         } else {
             throw new Error('Invalid Job Data');
@@ -811,7 +824,7 @@ class Github {
                 }
                 return true;
             } else {
-                return Github.handleRateLimit(res);
+                return await Github.handleRateLimit(res);
             }
         } else {
             throw new Error('Invalid Job Data');
@@ -832,7 +845,7 @@ class Github {
             if (processFunc in Github && typeof Github[processFunc] === 'function') {
                 // Delay process
                 await new Promise((resolve, reject) => {
-                    setTimeout(resolve, lodash.random(1.6, 3.1) * 1000);
+                    setTimeout(resolve, lodash.random(0.6, 1.1) * 1000);
                 });
                 // Call ${processFunc}
                 try {
@@ -841,7 +854,7 @@ class Github {
                     if (String(e.message).includes('GITHUB RETRY REQUEST')) {
                         try {
                             await new Promise((resolve, reject) => {
-                                setTimeout(resolve, lodash.random(1.6, 3.1) * 1000);
+                                setTimeout(resolve, lodash.random(0.6, 1.1) * 1000);
                             });
                             await job.retry();
                         } catch (e) {

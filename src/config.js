@@ -78,7 +78,7 @@ module.exports = {
     },
     // Queue config
     queue: {
-        concurrency: 1,
+        concurrency: 2,
         timeout: 15000, // 12s
     },
 };

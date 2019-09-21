@@ -39,7 +39,7 @@ class Utils {
      * @returns {number}
      */
     static randomSecond() {
-        return lodash.random(3, 6) * 1000;
+        return lodash.random(1, 3) * 1000;
     }
 
     /**
