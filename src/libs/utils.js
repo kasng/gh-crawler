@@ -13,18 +13,18 @@ class Utils {
     static logInfo(message, fileNamePrefix = 'Error') {
         (0, _utils.checkParamOrThrow)(fileNamePrefix, 'fileNamePrefix', 'String | Number');
 
-        const opts = {
-            errorEventName: 'error',
-            logDirectory: Config.logDir, // NOTE: folder must exist and be writable...
-            fileNamePattern: `${fileNamePrefix}-<DATE>.log`,
-            dateFormat: 'YYYY.MM.DD'
-        };
-        const log = require('simple-node-logger').createRollingFileLogger(opts);
-        log.info(message);
-        console.log(`${fileNamePrefix}: `, message);
-        // if (String(fileNamePrefix).includes('Error')) {
-        //     console.error(message);
-        // }
+        // const opts = {
+        //     errorEventName: 'error',
+        //     logDirectory: Config.logDir, // NOTE: folder must exist and be writable...
+        //     fileNamePattern: `${fileNamePrefix}-<DATE>.log`,
+        //     dateFormat: 'YYYY.MM.DD'
+        // };
+        // const log = require('simple-node-logger').createRollingFileLogger(opts);
+        // log.info(message);
+        // console.log(`${fileNamePrefix}: `, message);
+        if (String(fileNamePrefix).includes('Error')) {
+            console.error(message);
+        }
         return true;
     }
 

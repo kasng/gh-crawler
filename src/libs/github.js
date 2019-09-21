@@ -101,15 +101,14 @@ class Github {
             // Github rate limit
             console.error('====== GITHUB LIMIT ======');
             // Github.beforeExit();
-            throw new Error('GITHUB RATE LIMIT. Try again');
         }
-        return null;
+        throw new Error('GITHUB RETRY REQUEST');
     }
 
     /**
      * Increase page for url
      * @param url
-     * @returns {string}
+     * @returns {string|boolean}
      */
     static getNextPageUrl(url) {
         let jobUrl = new URL(url);
@@ -117,9 +116,12 @@ class Github {
         if (!currentPage) {
             currentPage = 1;
         }
-        let nextPage = Number(currentPage) + 1;
-        jobUrl.searchParams.set('page', nextPage);
-        return jobUrl.href;
+        if (Number(currentPage) < 10) {
+            let nextPage = Number(currentPage) + 1;
+            jobUrl.searchParams.set('page', nextPage);
+            return jobUrl.href;
+        }
+        return false;
     }
 
     /**
@@ -269,12 +271,14 @@ class Github {
             if ('items' in res.data && res.data.items && res.data.items.length > 0) {
 
                 if (res.data.items.length === Config.github.api.perPage) {
-                    // Increase page
-                    jobData.page = Number(jobData.page) + 1;
-                    console.error(jobData);
-                    Utils.logInfo(JSON.stringify(jobData), 'Search_Repos_Results_Next_Page');
-                    // Add to queue
-                    Github.addRequestQueue(jobData, 1);
+                    if (jobData.page < 10) {
+                        // Increase page
+                        jobData.page = Number(jobData.page) + 1;
+                        console.error(jobData);
+                        Utils.logInfo(JSON.stringify(jobData), 'Search_Repos_Results_Next_Page');
+                        // Add to queue
+                        Github.addRequestQueue(jobData, 1);
+                    }
                 }
 
                 const items = lodash.clone(res.data.items);
@@ -383,16 +387,18 @@ class Github {
                     if (res.data.length === Config.github.api.perPage) {
                         // Can add next page to queue
                         const nextPageUrl = Github.getNextPageUrl(jobData.url);
-                        // Add next page to GithubRequestQueue
-                        const nextPageJob = {
-                            repoObjectId: jobData.repoObjectId,
-                            url: nextPageUrl,
-                            repoName: jobData.repoName,
-                            repoFullName: jobData.repoFullName,
-                            type: 'RepoContributors'
-                        };
-                        Utils.logInfo(nextPageJob, 'Contributors_Next_Page');
-                        Github.addRequestQueue(nextPageJob, 3);
+                        if (nextPageUrl) {
+                            // Add next page to GithubRequestQueue
+                            const nextPageJob = {
+                                repoObjectId: jobData.repoObjectId,
+                                url: nextPageUrl,
+                                repoName: jobData.repoName,
+                                repoFullName: jobData.repoFullName,
+                                type: 'RepoContributors'
+                            };
+                            Utils.logInfo(nextPageJob, 'Contributors_Next_Page');
+                            Github.addRequestQueue(nextPageJob, 3);
+                        }
                     }
 
                     // Save to mongodb
@@ -592,15 +598,17 @@ class Github {
                     if (UserRepos.length === Config.github.api.perPage) {
                         // Add next page
                         const nextPageUrl = Github.getNextPageUrl(jobData.url);
-                        // Add nex page to GithubRequestQueue
-                        const nextPageJob = {
-                            contributorObjectId: jobData.contributorObjectId,
-                            url: nextPageUrl,
-                            contributorLogin: jobData.contributorLogin,
-                            type: 'UserRepos'
-                        };
-                        Utils.logInfo(nextPageJob, 'User_Repos_Next_Page');
-                        Github.addRequestQueue(nextPageJob, 5);
+                        if (nextPageUrl) {
+                            // Add nex page to GithubRequestQueue
+                            const nextPageJob = {
+                                contributorObjectId: jobData.contributorObjectId,
+                                url: nextPageUrl,
+                                contributorLogin: jobData.contributorLogin,
+                                type: 'UserRepos'
+                            };
+                            Utils.logInfo(nextPageJob, 'User_Repos_Next_Page');
+                            Github.addRequestQueue(nextPageJob, 5);
+                        }
                     }
                     // Update to contributor collections
                     for (let userRepo of UserRepos) {
@@ -664,15 +672,17 @@ class Github {
                     if (UserRepos.length === Config.github.api.perPage) {
                         // Add next page
                         const nextPageUrl = Github.getNextPageUrl(jobData.url);
-                        // Add nex page to GithubRequestQueue
-                        const nextPageJob = {
-                            contributorObjectId: jobData.contributorObjectId,
-                            url: nextPageUrl,
-                            contributorLogin: jobData.contributorLogin,
-                            type: 'UserStarred'
-                        };
-                        Utils.logInfo(nextPageJob, 'Starred_Repos_Next_Page');
-                        Github.addRequestQueue(nextPageJob, 5);
+                        if (nextPageUrl) {
+                            // Add nex page to GithubRequestQueue
+                            const nextPageJob = {
+                                contributorObjectId: jobData.contributorObjectId,
+                                url: nextPageUrl,
+                                contributorLogin: jobData.contributorLogin,
+                                type: 'UserStarred'
+                            };
+                            Utils.logInfo(nextPageJob, 'Starred_Repos_Next_Page');
+                            Github.addRequestQueue(nextPageJob, 5);
+                        }
                     }
                     // Update to contributor collections
                     for (let userRepo of UserRepos) {
@@ -768,15 +778,17 @@ class Github {
                     if (UserEvents.length === Config.github.api.perPage) {
                         // Add next page
                         const nextPageUrl = Github.getNextPageUrl(jobData.url);
-                        // Add nex page to GithubRequestQueue
-                        const nextPageJob = {
-                            contributorObjectId: jobData.contributorObjectId,
-                            url: nextPageUrl,
-                            contributorLogin: jobData.contributorLogin,
-                            type: 'UserStarred'
-                        };
-                        Utils.logInfo(nextPageJob, 'User_Events_Next_Page');
-                        Github.addRequestQueue(nextPageJob, 5);
+                        if (nextPageUrl) {
+                            // Add nex page to GithubRequestQueue
+                            const nextPageJob = {
+                                contributorObjectId: jobData.contributorObjectId,
+                                url: nextPageUrl,
+                                contributorLogin: jobData.contributorLogin,
+                                type: 'UserStarred'
+                            };
+                            Utils.logInfo(nextPageJob, 'User_Events_Next_Page');
+                            Github.addRequestQueue(nextPageJob, 5);
+                        }
                     }
                     // Find email from response
                     let findEmails = Utils.findEmails(UserEvents);
@@ -809,9 +821,10 @@ class Github {
     /**
      * Process queue job
      * @param jobData
-     * @returns {Promise<void>}
+     * @param job
+     * @returns {Promise<boolean>}
      */
-    static async processJob(jobData = {}) {
+    static async processJob(jobData = {}, job) {
         (0, _utils.checkParamOrThrow)(jobData, 'jobData', 'Object');
         if ('type' in jobData) {
             console.log(jobData.type);
@@ -819,10 +832,24 @@ class Github {
             if (processFunc in Github && typeof Github[processFunc] === 'function') {
                 // Delay process
                 await new Promise((resolve, reject) => {
-                    setTimeout(resolve, lodash.random(2.6, 5.1) * 1000);
+                    setTimeout(resolve, lodash.random(1.6, 3.1) * 1000);
                 });
                 // Call ${processFunc}
-                return await (0, Github[processFunc])(jobData);
+                try {
+                    await (0, Github[processFunc])(jobData);
+                } catch (e) {
+                    if (String(e.message).includes('GITHUB RETRY REQUEST')) {
+                        try {
+                            await new Promise((resolve, reject) => {
+                                setTimeout(resolve, lodash.random(1.6, 3.1) * 1000);
+                            });
+                            await job.retry();
+                        } catch (e) {
+                            throw e;
+                        }
+                    }
+                }
+                return true;
             }
         }
         throw new Error('Invalid job data');
