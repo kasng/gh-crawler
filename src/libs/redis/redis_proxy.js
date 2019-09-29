@@ -63,14 +63,14 @@ var randomProxyRedisInstance = new RandomProxyRedis(redisCommonConn);
 /**
  * This sorted sets save the number of failed of proxy url
  */
-class RandomProxyFailedStatsRedis extends RedisSortedSetsMaster {
+class ProxyRateLimitSets extends RedisSortedSetsMaster {
     constructor(props) {
         super(props);
-        this.mainKey = 'proxy_request_failed_stats';
+        this.mainKey = 'proxy_rate_limit';
     }
 }
 
 module.exports = {
     RandomProxyRedis: randomProxyRedisInstance,
-    RandomProxyFailedStatsRedis: new RandomProxyFailedStatsRedis(redisCommonConn)
+    ProxyRateLimitSets: new ProxyRateLimitSets(redisCommonConn)
 };

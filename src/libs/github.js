@@ -7,7 +7,7 @@ const lodash = require('lodash');
 const {RedisHashesMaster} = require('./redis/redis_conn');
 var GithubRepoModel = require('./models/repo');
 var GithubContributorModel = require('./models/contributor');
-const {GithubRequestQueue} = require('./redis/redis_queues');
+const {GithubRequestQueue, ContributorRequestQueue, RepoRequestQueue} = require('./redis/redis_queues');
 const {URL} = require('url');
 const {RandomProxyRedis, ProxyRateLimitSets} = require('./redis/redis_proxy');
 const nodemailer = require('nodemailer');
@@ -76,13 +76,20 @@ class Github {
      * @returns {*}
      */
     static addRequestQueue(jobData, priority = 1) {
-        return GithubRequestQueue.add(jobData, {
+        const jobOptions = {
             delay: Utils.randomSecond(),
             priority: priority,
             timeout: Config.queue.timeout,
             attempts: 3,
             backoff: 5000
-        });
+        };
+        if ('type' in jobData && Array.from(['RepoContributors', 'User', 'UserEvents', 'NpmEmail']).indexOf(jobData.type) > -1) {
+            return ContributorRequestQueue.add(jobData, jobOptions);
+        }
+        if ('type' in jobData && Array.from(['RepoLanguages', 'RepoTopics', 'UserRepos', 'UserStarred']).indexOf(jobData.type) > -1) {
+            return RepoRequestQueue.add(jobData, jobOptions);
+        }
+        return GithubRequestQueue.add(jobData, jobOptions);
     }
 
     /**
@@ -240,16 +247,20 @@ class Github {
             // Request OK
             // Create new queue
             let newRangeStars = false;
-            if (!('items' in res.data)) {
+            if (!res.data) {
                 newRangeStars = true;
             }
-            if ('items' in res.data && res.data.items && res.data.items.length === 0) {
+            if (!('items' in res.data) || !res.data.items) {
                 newRangeStars = true;
             }
-            if ('items' in res.data && res.data.items && res.data.items.length > 0 && res.data.items.length < Config.github.api.perPage) {
+            if ('items' in res.data && lodash.isArray(res.data.items) && res.data.items.length === 0) {
+                newRangeStars = true;
+            }
+            if ('items' in res.data && lodash.isArray(res.data.items) && res.data.items.length > 0 && res.data.items.length < Config.github.api.perPage) {
                 newRangeStars = true;
             }
             if (newRangeStars === true) {
+                console.log('------- NEW SEARCH RANGE --------');
                 // New stars range
                 jobData.maxStars = lodash.clone(jobData.minStars);
                 if (jobData.maxStars <= 1000) {
@@ -262,7 +273,7 @@ class Github {
                     jobData.minStars = Number(lodash.clone(jobData.minStars)) - 500; // step 500 stars
                 }
                 jobData.page = 1;
-                console.error(jobData);
+                console.log('New_Range_Stars: ', jobData);
                 Utils.logInfo(JSON.stringify(jobData), 'New_Range_Stars');
                 // Keep working with min stars is Config.github.api.minStars (= 250)
                 if (jobData.minStars >= Config.github.api.minStars) {
@@ -280,7 +291,7 @@ class Github {
                     if (jobData.page < 10) {
                         // Increase page
                         jobData.page = Number(jobData.page) + 1;
-                        console.error(jobData);
+                        console.log(jobData);
                         Utils.logInfo(JSON.stringify(jobData), 'Search_Repos_Results_Next_Page');
                         // Add to queue
                         Github.addRequestQueue(jobData, 1);
@@ -330,7 +341,7 @@ class Github {
                                     };
                                     Utils.logInfo(JSON.stringify(langsJobData), 'Languages_Job_Data');
 
-                                    Github.addRequestQueue(langsJobData, 4);
+                                    Github.addRequestQueue(langsJobData, 2);
                                 }
                                 /**
                                  * @todo Add get repo topics queue
@@ -344,7 +355,7 @@ class Github {
                                         type: 'RepoTopics'
                                     };
                                     Utils.logInfo(JSON.stringify(topicsJobData), 'Topics_Job_Data');
-                                    Github.addRequestQueue(topicsJobData, 4);
+                                    Github.addRequestQueue(topicsJobData, 2);
                                 }
 
                                 /**
@@ -364,7 +375,7 @@ class Github {
                                 };
 
                                 Utils.logInfo(JSON.stringify(contributorJobData), 'Contributor_Job_Data');
-                                Github.addRequestQueue(contributorJobData, 3);
+                                Github.addRequestQueue(contributorJobData, 1);
                             }
                         }
                     }
@@ -406,7 +417,7 @@ class Github {
                                 type: 'RepoContributors'
                             };
                             Utils.logInfo(nextPageJob, 'Contributors_Next_Page');
-                            Github.addRequestQueue(nextPageJob, 3);
+                            Github.addRequestQueue(nextPageJob, 2);
                         }
                     }
 
@@ -438,7 +449,7 @@ class Github {
                                 type: 'User'
                             };
                             Utils.logInfo(JSON.stringify(userJobData), 'User_Job_Data');
-                            Github.addRequestQueue(userJobData, 5);
+                            Github.addRequestQueue(userJobData, 1);
                             // Add user starred repos api to request queue
                             const starredReposJob = {
                                 contributorObjectId: contributorDoc._id,
@@ -447,7 +458,7 @@ class Github {
                                 type: 'UserStarred'
                             };
                             Utils.logInfo(JSON.stringify(starredReposJob), 'Starred_Job_Data');
-                            Github.addRequestQueue(starredReposJob, 5);
+                            Github.addRequestQueue(starredReposJob, 3);
                             // Add user repos api to request queue
                             const userReposJob = {
                                 contributorObjectId: contributorDoc._id,
@@ -456,7 +467,7 @@ class Github {
                                 type: 'UserRepos'
                             };
                             Utils.logInfo(JSON.stringify(userReposJob), 'User_Repos_Job_Data');
-                            Github.addRequestQueue(userReposJob, 5);
+                            Github.addRequestQueue(userReposJob, 3);
                             // Add user events api to queue
                             const userEventsJob = {
                                 contributorObjectId: contributorDoc._id,
@@ -465,7 +476,7 @@ class Github {
                                 type: 'UserEvents'
                             };
                             Utils.logInfo(JSON.stringify(userEventsJob), 'User_Events_Job_Data');
-                            Github.addRequestQueue(userEventsJob, 5);
+                            Github.addRequestQueue(userEventsJob, 1);
                             // Add get user email from npm
                             const getNpmEmailJob = {
                                 contributorObjectId: contributorDoc._id,
@@ -474,7 +485,7 @@ class Github {
                                 type: 'NpmEmail'
                             };
                             Utils.logInfo(JSON.stringify(getNpmEmailJob), 'Npm_Email_Job_Data');
-                            Github.addRequestQueue(getNpmEmailJob, 5);
+                            Github.addRequestQueue(getNpmEmailJob, 1);
                         }
 
                         // Push this contributor to repo doc
@@ -616,7 +627,7 @@ class Github {
                                 type: 'UserRepos'
                             };
                             Utils.logInfo(nextPageJob, 'User_Repos_Next_Page');
-                            Github.addRequestQueue(nextPageJob, 5);
+                            Github.addRequestQueue(nextPageJob, 3);
                         }
                     }
                     // Update to contributor collections
@@ -690,7 +701,7 @@ class Github {
                                 type: 'UserStarred'
                             };
                             Utils.logInfo(nextPageJob, 'Starred_Repos_Next_Page');
-                            Github.addRequestQueue(nextPageJob, 5);
+                            Github.addRequestQueue(nextPageJob, 3);
                         }
                     }
                     // Update to contributor collections
@@ -800,7 +811,7 @@ class Github {
                                 type: 'UserStarred'
                             };
                             Utils.logInfo(nextPageJob, 'User_Events_Next_Page');
-                            Github.addRequestQueue(nextPageJob, 5);
+                            Github.addRequestQueue(nextPageJob, 2);
                         }
                     }
                     // Find email from response

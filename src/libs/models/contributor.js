@@ -24,7 +24,7 @@ const GithubContributorSchema = new Schema({
             _id: false
         }
     ]
-}, {collection: 'github_contributors', versionKey: false, strict: false});
+}, {collection: 'github_contributors_v2', versionKey: false, strict: false});
 
 GithubContributorSchema.statics.checkExistByLogin = async function (login) {
     let count = await this.count({

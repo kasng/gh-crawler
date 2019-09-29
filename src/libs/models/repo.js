@@ -14,7 +14,7 @@ const GithubRepoSchema = new Schema({
     contributors: [
         {type: Schema.Types.ObjectId, ref: 'GithubContributor'}
     ],
-}, {collection: 'github_repos', versionKey: false, strict: false});
+}, {collection: 'github_repos_v2', versionKey: false, strict: false});
 
 GithubRepoSchema.statics.checkExistByName = async function (name) {
     let count = await this.count({

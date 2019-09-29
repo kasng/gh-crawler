@@ -17,7 +17,7 @@ module.exports = {
     github: {
         api: {
             host: 'https://api.github.com',
-            timeout: 15000, // 15s
+            timeout: 30000, // 30s
             perPage: 100,
             minStars: 250,
             startStarsSearch: 15000 // Start search repo with 15k stars
@@ -78,7 +78,7 @@ module.exports = {
     },
     // Queue config
     queue: {
-        concurrency: 2,
-        timeout: 15000, // 12s
+        concurrency: 1,
+        timeout: 35000, // 35s
     },
 };

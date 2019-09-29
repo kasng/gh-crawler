@@ -22,7 +22,9 @@ class Utils {
         // const log = require('simple-node-logger').createRollingFileLogger(opts);
         // log.info(message);
         // console.log(`${fileNamePrefix}: `, message);
-        if (String(fileNamePrefix).includes('Error')) {
+        if (String(fileNamePrefix).includes('Error')
+            || String(fileNamePrefix).includes('QueueEvent')
+            || String(fileNamePrefix).includes('New_Range_Stars')) {
             console.error(message);
         }
         return true;
@@ -47,18 +49,6 @@ class Utils {
      * @returns {Promise<never>}
      */
     static async connectMongo() {
-        /**
-         * Connect mongodb
-         */
-        try {
-            await mongoose.connect(Config.mongooseUri, {useNewUrlParser: true, useFindAndModify: false});
-        } catch (e) {
-            console.log('try catch connect');
-            /**
-             * @todo Retry task process
-             */
-            return process.exit(400);
-        }
         mongoose.Promise = global.Promise;
         const db = mongoose.connection;
         db.on('error', function () {
@@ -74,6 +64,18 @@ class Utils {
             // we're connected!
             console.log('Connected mongoDB');
         });
+        /**
+         * Connect mongodb
+         */
+        try {
+            await mongoose.connect(Config.mongooseUri, {useNewUrlParser: true, useFindAndModify: false});
+        } catch (e) {
+            console.log('try catch connect');
+            /**
+             * @todo Retry task process
+             */
+            return process.exit(400);
+        }
     }
 
     static findEmailsHelper(obj, list) {
